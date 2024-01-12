@@ -582,8 +582,14 @@ classdef ISpin_SAGA_exported < matlab.apps.AppBase
                     dlg_emg  = inputdlg(prompt, name);
 
                     app.RecordParameters.DiscardChannels{i} = zeros(str2double(app.ChpergridDropDown.Value),1);
-                    for j = 1:4
-                        app.RecordParameters.DiscardChannels{i}(str2num(dlg_emg{j}) + ((j-1)*8),1) = 1;
+                    if str2double(app.ChpergridDropDown.Value) == 32
+                        for j = 1:4
+                            app.RecordParameters.DiscardChannels{i}(str2num(dlg_emg{j}) + ((j-1)*8),1) = 1;
+                        end
+                    else
+                        for j = 1:8
+                            app.RecordParameters.DiscardChannels{i}(str2num(dlg_emg{j}) + ((j-1)*8),1) = 1;
+                        end
                     end
                     close;
                 end
