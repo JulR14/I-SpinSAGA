@@ -416,7 +416,7 @@ classdef ISpin_SAGA_exported < matlab.apps.AppBase
             % Pre allocate empty matrices
             time = linspace(0,5,5*str2double(app.FrequencyDropDown.Value));
             buffer = zeros(str2double(app.FrequencyDropDown.Value)*5,str2double(app.ChpergridDropDown.Value));
-            EMG = zeros(str2double(app.ChpergridDropDown.Value)*app.RecordParameters.ngrid,str2double(app.FrequencyDropDown.Value)*15+1000);
+            EMG = zeros(str2double(app.ChpergridDropDown.Value)*app.RecordParameters.ngrid,str2double(app.FrequencyDropDown.Value)*15+2000);
             offset = (1:1:str2double(app.ChpergridDropDown.Value))';
             EMGfilter = zeros(str2double(app.FrequencyDropDown.Value)*15+1000,str2double(app.ChpergridDropDown.Value)*app.RecordParameters.ngrid);
 
@@ -425,19 +425,32 @@ classdef ISpin_SAGA_exported < matlab.apps.AppBase
             try
 
                 app.ComParameters.device.start();
-                pause(0.125)
+
                 while i <= nwin -500
                     [samples, num_sets] = app.ComParameters.device.sample();
                     if num_sets > 0
+                        % Filter can not be applied if number of sampel too low
+                        while num_sets < 10
+                            [samplesT, num_setsT] = app.ComParameters.device.sample();
+                            samples = [samples samplesT];
+                            num_sets = num_sets + num_setsT;
+                        end
                         EMG(:,i:i+num_sets-1) = samples(app.ComParameters.gridchannels, :);
                         EMGfilter(1:i+num_sets-1,:) = filtfilt(c,d,EMG(:,1:i+num_sets-1)');
 
-                        buffer(nwinbuff:nwinbuff+num_sets-1,:) = (EMGfilter(i:i+num_sets-1,(str2double(app.GriddisplayedDropDown.Value)-1)*str2double(app.ChpergridDropDown.Value)+1:str2double(app.GriddisplayedDropDown.Value)*str2double(app.ChpergridDropDown.Value))' * 0.001 + ones(str2double(app.ChpergridDropDown.Value),num_sets).*offset)';
+                        if nwinbuff + num_sets <= nwinbuffmax
+                            buffer(nwinbuff:nwinbuff+num_sets-1,:) = (EMGfilter(i:i+num_sets-1,(str2double(app.GriddisplayedDropDown.Value)-1)*str2double(app.ChpergridDropDown.Value)+1:str2double(app.GriddisplayedDropDown.Value)*str2double(app.ChpergridDropDown.Value))' * 0.001 + ones(str2double(app.ChpergridDropDown.Value),num_sets).*offset)';
+                        else
+                            cutbuff = nwinbuffmax - nwinbuff;
+                            buffer(nwinbuff:nwinbuffmax-1,:) = (EMGfilter(i:i+cutbuff-1,(str2double(app.GriddisplayedDropDown.Value)-1)*str2double(app.ChpergridDropDown.Value)+1:str2double(app.GriddisplayedDropDown.Value)*str2double(app.ChpergridDropDown.Value))' * 0.001 + ones(str2double(app.ChpergridDropDown.Value),cutbuff).*offset)';                            
+                        end
 
                         plot(app.UIAxes3, time, buffer, 'LineWidth', 1, 'Color', [0.9412 0.9412 0.9412]);
                         app.UIAxes3.XLim = [0 5];
                         app.UIAxes3.YLim = [0 str2double(app.ChpergridDropDown.Value)+2];
-                        line(app.UIAxes3, [time(nwinbuff+num_sets-1) time(nwinbuff+num_sets-1)], [0 app.RecordParameters.ngrid*str2double(app.ChpergridDropDown.Value)], 'LineWidth', 1, 'Color', [0.81 0.50 1.00]);
+                        if nwinbuff + num_sets <= nwinbuffmax
+                            line(app.UIAxes3, [time(nwinbuff+num_sets-1) time(nwinbuff+num_sets-1)], [0 app.RecordParameters.ngrid*str2double(app.ChpergridDropDown.Value)], 'LineWidth', 1, 'Color', [0.81 0.50 1.00]);
+                        end
                         drawnow limitrate
                         i = i + num_sets;
                         if nwinbuff+num_sets < nwinbuffmax
@@ -468,7 +481,7 @@ classdef ISpin_SAGA_exported < matlab.apps.AppBase
 
                 % Save the file and update the UI for the next acquisition
                 Musclename = app.RecordParameters.Muscles;
-                save([app.EditField_saving.Value 'EMGChecking ' replace(datestr(datetime('now')),':','_') '.mat'],'EMG', 'DisChannels', 'Musclename');
+                save([app.EditField_saving.Value 'EMGChecking ' replace(datestr(datetime('now')),':','_') '.mat'],'EMG', 'Musclename');
 
             catch e
                 % In case of an error close all still active devices and clean up
@@ -511,7 +524,7 @@ classdef ISpin_SAGA_exported < matlab.apps.AppBase
             % Pre allocate empty matrices
             time = linspace(0,5,5*str2double(app.FrequencyDropDown.Value));
             buffer = zeros(str2double(app.FrequencyDropDown.Value)*5,str2double(app.ChpergridDropDown.Value));
-            EMG = zeros(str2double(app.ChpergridDropDown.Value)*app.RecordParameters.ngrid,str2double(app.FrequencyDropDown.Value)*30+1000);
+            EMG = zeros(str2double(app.ChpergridDropDown.Value)*app.RecordParameters.ngrid,str2double(app.FrequencyDropDown.Value)*30+3000);
             offset = (1:1:str2double(app.ChpergridDropDown.Value))';
             EMGfilter = zeros(str2double(app.FrequencyDropDown.Value)*30+1000,str2double(app.ChpergridDropDown.Value)*app.RecordParameters.ngrid);
 
@@ -520,19 +533,32 @@ classdef ISpin_SAGA_exported < matlab.apps.AppBase
             try
 
                 app.ComParameters.device.start();
-                pause(0.125)
-                while i <= nwin -500
+                pause(0.250)
+                while i <= nwin -2000
                     [samples, num_sets] = app.ComParameters.device.sample();
                     if num_sets > 0
+                        % Filter can not be applied if number of sampel too low
+                        while num_sets < 10
+                            [samplesT, num_setsT] = app.ComParameters.device.sample();
+                            samples = [samples samplesT];
+                            num_sets = num_sets + num_setsT;
+                        end
                         EMG(:,i:i+num_sets-1) = samples(app.ComParameters.gridchannels, :);
                         EMGfilter(1:i+num_sets-1,:) = filtfilt(c,d,EMG(:,1:i+num_sets-1)');
 
-                        buffer(nwinbuff:nwinbuff+num_sets-1,:) = (EMGfilter(i:i+num_sets-1,(str2double(app.GriddisplayedDropDown.Value)-1)*str2double(app.ChpergridDropDown.Value)+1:str2double(app.GriddisplayedDropDown.Value)*str2double(app.ChpergridDropDown.Value))' * 0.001 + ones(str2double(app.ChpergridDropDown.Value),num_sets).*offset)';
+                        if nwinbuff + num_sets <= nwinbuffmax
+                            buffer(nwinbuff:nwinbuff+num_sets-1,:) = (EMGfilter(i:i+num_sets-1,(str2double(app.GriddisplayedDropDown.Value)-1)*str2double(app.ChpergridDropDown.Value)+1:str2double(app.GriddisplayedDropDown.Value)*str2double(app.ChpergridDropDown.Value))' * 0.001 + ones(str2double(app.ChpergridDropDown.Value),num_sets).*offset)';
+                        else
+                            cutbuff = nwinbuffmax - nwinbuff;
+                            buffer(nwinbuff:nwinbuffmax-1,:) = (EMGfilter(i:i+cutbuff-1,(str2double(app.GriddisplayedDropDown.Value)-1)*str2double(app.ChpergridDropDown.Value)+1:str2double(app.GriddisplayedDropDown.Value)*str2double(app.ChpergridDropDown.Value))' * 0.001 + ones(str2double(app.ChpergridDropDown.Value),cutbuff).*offset)';                            
+                        end
 
                         plot(app.UIAxes3, time, buffer, 'LineWidth', 1, 'Color', [0.9412 0.9412 0.9412]);
                         app.UIAxes3.XLim = [0 5];
                         app.UIAxes3.YLim = [0 str2double(app.ChpergridDropDown.Value)+2];
-                        line(app.UIAxes3, [time(nwinbuff+num_sets-1) time(nwinbuff+num_sets-1)], [0 app.RecordParameters.ngrid*str2double(app.ChpergridDropDown.Value)], 'LineWidth', 1, 'Color', [0.81 0.50 1.00]);
+                        if nwinbuff + num_sets <= nwinbuffmax
+                            line(app.UIAxes3, [time(nwinbuff+num_sets-1) time(nwinbuff+num_sets-1)], [0 app.RecordParameters.ngrid*str2double(app.ChpergridDropDown.Value)], 'LineWidth', 1, 'Color', [0.81 0.50 1.00]);
+                        end
                         drawnow limitrate
                         i = i + num_sets;
                         if nwinbuff+num_sets < nwinbuffmax
@@ -582,14 +608,8 @@ classdef ISpin_SAGA_exported < matlab.apps.AppBase
                     dlg_emg  = inputdlg(prompt, name);
 
                     app.RecordParameters.DiscardChannels{i} = zeros(str2double(app.ChpergridDropDown.Value),1);
-                    if str2double(app.ChpergridDropDown.Value) == 32
-                        for j = 1:4
-                            app.RecordParameters.DiscardChannels{i}(str2num(dlg_emg{j}) + ((j-1)*8),1) = 1;
-                        end
-                    else
-                        for j = 1:8
-                            app.RecordParameters.DiscardChannels{i}(str2num(dlg_emg{j}) + ((j-1)*8),1) = 1;
-                        end
+                    for j = 1:4
+                        app.RecordParameters.DiscardChannels{i}(str2num(dlg_emg{j}) + ((j-1)*8),1) = 1;
                     end
                     close;
                 end
